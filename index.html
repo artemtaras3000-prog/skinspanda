@@ -236,7 +236,6 @@
             { n: 'G22 | Frost Wyrm', p: 45, r: 'rare', t: '❄️' }
         ];
 
-        // Инициализируем базу данных ТОЛЬКО ЕСЛИ её нет в памяти
         let userDB = JSON.parse(localStorage.getItem('panda_users')) || {};
         let depositRequests = JSON.parse(localStorage.getItem('panda_requests')) || [];
         
@@ -245,15 +244,14 @@
         let activeId = null;
 
         window.onload = function() {
-            // Проверяем, был ли пользователь авторизован ранее
             let savedUid = localStorage.getItem('panda_active_uid');
             if (savedUid && userDB[savedUid]) {
                 currentUserId = savedUid;
-                document.getElementById('auth-gate').style.style.display = 'none';
+                document.getElementById('auth-gate').style.display = 'none';
                 updateUI();
                 showPage('shop');
             } else {
-                document.getElementById('auth-gate').style.style.display = 'flex';
+                document.getElementById('auth-gate').style.display = 'flex';
             }
             renderCatalog();
             setupAdminTriggers();
@@ -272,11 +270,9 @@
                 generatedUid = 'uid_artem';
             }
             
-            // Если пользователя вообще нет в базе — создаем. Если есть — НЕ ПЕРЕЗАПИСЫВАЕМ баланс!
             if(!userDB[generatedUid]) {
                 userDB[generatedUid] = { name: p.name, avatar: p.picture, balance: 0, cart: [], inventory: [] };
             } else {
-                // Если зашел старый пользователь, просто обновляем его аватарку и имя из Google на всякий случай
                 userDB[generatedUid].avatar = p.picture;
             }
             
@@ -285,10 +281,10 @@
             }
             
             currentUserId = generatedUid;
-            localStorage.setItem('panda_active_uid', currentUserId); // Сохраняем сессию навсегда
+            localStorage.setItem('panda_active_uid', currentUserId);
             
             saveDB();
-            document.getElementById('auth-gate').style.style.display = 'none';
+            document.getElementById('auth-gate').style.display = 'none';
             updateUI();
             showPage('shop');
             showToast("Вы вошли как " + userDB[currentUserId].name);
@@ -416,7 +412,7 @@
             document.getElementById('invoice-amount').innerText = amount + " ₽";
             document.getElementById('invoice-amount-text').innerText = amount + " ₽";
             closeModals();
-            document.getElementById('main-header').style.style.display = 'none';
+            document.getElementById('main-header').style.display = 'none';
             showPage('payment');
         }
 
@@ -430,14 +426,14 @@
             });
             saveDB();
             alert("Заявка отправлена на проверку к Artem!");
-            document.getElementById('main-header').style.style.display = 'flex';
+            document.getElementById('main-header').style.display = 'flex';
             currentPendingDeposit = 0;
             showPage('profile');
         }
 
         function cancelInvoice() {
             currentPendingDeposit = 0;
-            document.getElementById('main-header').style.style.display = 'flex';
+            document.getElementById('main-header').style.display = 'flex';
             showPage('profile');
         }
 
@@ -520,7 +516,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('panda_active_uid'); // Очищаем только сессию входа, база юзеров остается!
+            localStorage.removeItem('panda_active_uid');
             location.reload();
         }
 
@@ -541,7 +537,7 @@
         }
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); }
-        function showToast(m) { const t = document.getElementById('toast'); t.innerText = "✅ " + m; t.style.style.display = 'block'; setTimeout(() => t.style.style.display = 'none', 3000); }
+        function showToast(m) { const t = document.getElementById('toast'); t.innerText = "✅ " + m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3000); }
     </script>
 </body>
 </html>
