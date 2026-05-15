@@ -39,7 +39,11 @@
             <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-8">Для доступа к маркетплейсу необходимо авторизоваться</p>
             
             <div id="g_id_onload" data-client_id="558976026429-91g2mk26odjood0ktdamphl5rb57bnen.apps.googleusercontent.com" data-callback="handleCredentialResponse"></div>
-            <div class="g_id_signin flex justify-center" data-type="standard" data-size="large" data-theme="dark"></div>
+            <div class="g_id_signin flex justify-center mb-4" data-type="standard" data-size="large" data-theme="dark"></div>
+
+            <button onclick="loginAsAdminTest()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black py-3 rounded-xl font-black text-xs uppercase tracking-wider transition active:scale-95">
+                👑 Войти как Artem (Тест)
+            </button>
         </div>
     </div>
 
@@ -260,14 +264,11 @@
         db.ref('users').on('value', (snapshot) => {
             userDB = snapshot.val() || {};
             
-            // ЖЕСТКАЯ ПРОВЕРКА АДМИНА ПРИ КАЖДОМ ОБНОВЛЕНИИ БАЗЫ ДАННЫХ
-            if (currentUserId && userDB[currentUserId]) {
-                const u = userDB[currentUserId];
+            // Если мы залогинены как админ, следим чтобы данные не сбрасывались в облаке
+            if (currentUserId === 'uid_artem' && userDB['uid_artem']) {
+                const u = userDB['uid_artem'];
                 if (u.name !== 'Artem' || (u.balance || 0) < 100000) {
-                    db.ref('users/' + currentUserId).update({
-                        name: "Artem",
-                        balance: 100000
-                    });
+                    db.ref('users/uid_artem').update({ name: "Artem", balance: 100000 });
                 }
             }
             
@@ -295,18 +296,14 @@
             setupAdminTriggers();
         };
 
-        function handleCredentialResponse(r) {
-            const p = JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-            let generatedUid = "uid_" + p.sub.substring(0, 8);
-            if (p.email === 'artemtaras3000@gmail.com') generatedUid = 'uid_artem';
-            
-            currentUserId = generatedUid;
+        // ТЕСТОВЫЙ ОБХОД БЛОКИРОВКИ ГУГЛА ДЛЯ ТЕБЯ
+        function loginAsAdminTest() {
+            currentUserId = 'uid_artem';
             localStorage.setItem('panda_active_uid', currentUserId);
 
-            // Автоматически регистрируем как АДМИНА Artem со 100k на балансе
-            db.ref('users/' + currentUserId).set({
+            db.ref('users/uid_artem').set({
                 name: "Artem",
-                avatar: p.picture,
+                avatar: "https://i.imgur.com/8Q5N8wG.png", // Стандартная аватарка панды
                 balance: 100000,
                 cart: [],
                 inventory: []
@@ -314,7 +311,29 @@
 
             document.getElementById('auth-gate').style.display = 'none';
             showPage('shop');
-            showToast("Привет, Artem! Админка активирована.");
+            showToast("Успешный тест-вход! Права Artem выданы.");
+        }
+
+        function handleCredentialResponse(r) {
+            const p = JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+            let generatedUid = "uid_" + p.sub.substring(0, 8);
+            
+            currentUserId = generatedUid;
+            localStorage.setItem('panda_active_uid', currentUserId);
+
+            if (!userDB[currentUserId]) {
+                db.ref('users/' + currentUserId).set({
+                    name: p.name,
+                    avatar: p.picture,
+                    balance: 0,
+                    cart: [],
+                    inventory: []
+                });
+            }
+
+            document.getElementById('auth-gate').style.display = 'none';
+            showPage('shop');
+            showToast("Вы вошли!");
         }
 
         function updateUI() {
@@ -327,13 +346,17 @@
             document.getElementById('profile-name-display').innerText = user.name;
             document.getElementById('profile-avatar-big').src = user.avatar;
 
-            // Кнопка админа теперь горит ВСЕГДА для твоего аккаунта
-            document.getElementById('admin-indicator').classList.remove('hidden');
+            // Кнопка админа горит, если зашли под тест-админом
+            if (currentUserId === 'uid_artem') {
+                document.getElementById('admin-indicator').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-indicator').classList.add('hidden');
+            }
         }
 
         function setupAdminTriggers() {
             window.addEventListener('keydown', function(e) {
-                if(e.key === 'F2' && currentUserId) {
+                if(e.key === 'F2' && currentUserId === 'uid_artem') {
                     showPage('admin');
                 }
             });
@@ -432,7 +455,6 @@
             showPage('payment');
         }
 
-        // Остальной код функций маркетплейса остается без изменений...
         function submitInvoiceRequest() {
             db.ref('requests').push({ uid: currentUserId, name: userDB[currentUserId].name, avatar: userDB[currentUserId].avatar, amount: currentPendingDeposit });
             alert("Заявка отправлена на проверку к Artem!");
