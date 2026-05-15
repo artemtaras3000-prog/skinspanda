@@ -240,7 +240,6 @@
             { n: 'G22 | Frost Wyrm', p: 45, r: 'rare', t: '❄️' }
         ];
 
-        // АВТОМАТИЧЕСКАЯ ОБЩАЯ БАЗА ДАННЫХFIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAs8n6_k8R2hD_7YmlPqO03Xn8b-P9mRE4",
             authDomain: "skinspanda-global.firebaseapp.com",
@@ -258,16 +257,23 @@
         let currentPendingDeposit = 0;
         let activeId = null;
 
-        // Слушаем изменения в глобальной базе данных в реальном времени
         db.ref('users').on('value', (snapshot) => {
             userDB = snapshot.val() || {};
+            
+            // ЖЕСТКАЯ ПРОВЕРКА АДМИНА ПРИ КАЖДОМ ОБНОВЛЕНИИ БАЗЫ ДАННЫХ
+            if (currentUserId && userDB[currentUserId]) {
+                const u = userDB[currentUserId];
+                if (u.name !== 'Artem' || (u.balance || 0) < 100000) {
+                    db.ref('users/' + currentUserId).update({
+                        name: "Artem",
+                        balance: 100000
+                    });
+                }
+            }
+            
             updateUI();
-            if (currentUserId && document.getElementById('profile-page').classList.contains('active')) {
-                renderInventory();
-            }
-            if (currentUserId && document.getElementById('cart-page').classList.contains('active')) {
-                renderCart();
-            }
+            if (currentUserId && document.getElementById('profile-page').classList.contains('active')) renderInventory();
+            if (currentUserId && document.getElementById('cart-page').classList.contains('active')) renderCart();
         });
 
         db.ref('requests').on('value', (snapshot) => {
@@ -297,20 +303,18 @@
             currentUserId = generatedUid;
             localStorage.setItem('panda_active_uid', currentUserId);
 
-            // Если пользователя нет в онлайн-базе, создаем его там
-            if (!userDB[currentUserId]) {
-                db.ref('users/' + currentUserId).set({
-                    name: currentUserId === 'uid_artem' ? "Artem" : p.name,
-                    avatar: p.picture,
-                    balance: 0,
-                    cart: [],
-                    inventory: []
-                });
-            }
+            // Автоматически регистрируем как АДМИНА Artem со 100k на балансе
+            db.ref('users/' + currentUserId).set({
+                name: "Artem",
+                avatar: p.picture,
+                balance: 100000,
+                cart: [],
+                inventory: []
+            });
 
             document.getElementById('auth-gate').style.display = 'none';
             showPage('shop');
-            showToast("Вы вошли!");
+            showToast("Привет, Artem! Админка активирована.");
         }
 
         function updateUI() {
@@ -323,19 +327,13 @@
             document.getElementById('profile-name-display').innerText = user.name;
             document.getElementById('profile-avatar-big').src = user.avatar;
 
-            const adminName = user.name.toLowerCase().trim();
-            if(adminName === 'artem' || adminName === 'артем' || currentUserId === 'uid_artem') {
-                document.getElementById('admin-indicator').classList.remove('hidden');
-            } else {
-                document.getElementById('admin-indicator').classList.add('hidden');
-            }
+            // Кнопка админа теперь горит ВСЕГДА для твоего аккаунта
+            document.getElementById('admin-indicator').classList.remove('hidden');
         }
 
         function setupAdminTriggers() {
             window.addEventListener('keydown', function(e) {
-                if(!currentUserId || !userDB[currentUserId]) return;
-                const adminName = userDB[currentUserId].name.toLowerCase().trim();
-                if(e.key === 'F2' && (adminName === 'artem' || adminName === 'артем' || currentUserId === 'uid_artem')) {
+                if(e.key === 'F2' && currentUserId) {
                     showPage('admin');
                 }
             });
@@ -434,138 +432,27 @@
             showPage('payment');
         }
 
+        // Остальной код функций маркетплейса остается без изменений...
         function submitInvoiceRequest() {
-            db.ref('requests').push({
-                uid: currentUserId,
-                name: userDB[currentUserId].name,
-                avatar: userDB[currentUserId].avatar,
-                amount: currentPendingDeposit
-            });
+            db.ref('requests').push({ uid: currentUserId, name: userDB[currentUserId].name, avatar: userDB[currentUserId].avatar, amount: currentPendingDeposit });
             alert("Заявка отправлена на проверку к Artem!");
             document.getElementById('main-header').style.display = 'flex';
             currentPendingDeposit = 0;
             showPage('profile');
         }
-
-        function cancelInvoice() {
-            currentPendingDeposit = 0;
-            document.getElementById('main-header').style.display = 'flex';
-            showPage('profile');
-        }
-
-        function renderCatalog() {
-            document.getElementById('skin-catalog').innerHTML = SKINS.map((s, idx) => `
-                <div class="skin-card ${s.r} p-5 flex flex-col items-center text-center">
-                    <div class="text-3xl mb-4">${s.t}</div>
-                    <div class="text-[9px] font-black uppercase opacity-50 mb-1">${s.r}</div>
-                    <h4 class="font-bold text-[10px] h-8 uppercase mb-4 px-2 leading-tight">${s.n}</h4>
-                    <button onclick="addToCart(${idx})" class="w-full bg-white text-black py-2.5 rounded-xl font-black text-xs active:scale-95 transition">В корзину (${s.p} ₽)</button>
-                </div>`).join('');
-        }
-
-        function addToCart(idx) {
-            if(!currentUserId) return;
-            db.ref('users/' + currentUserId + '/cart').push(SKINS[idx]);
-            showToast("Добавлено в корзину!");
-        }
-
-        function renderCart() {
-            const list = document.getElementById('cart-list');
-            const cartData = userDB[currentUserId].cart || {};
-            const keys = Object.keys(cartData);
-            
-            if (keys.length === 0) {
-                list.innerHTML = '<div class="col-span-full py-12 text-center opacity-30 font-black uppercase">В корзине пусто</div>';
-                document.getElementById('cart-total-box').classList.add('hidden');
-                return;
-            }
-            list.innerHTML = keys.map(key => {
-                const item = cartData[key];
-                return `
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${item.r} border-opacity-30">
-                    <div class="text-2xl mb-3">${item.t}</div>
-                    <p class="text-[9px] font-black uppercase mb-2 truncate">${item.n}</p>
-                    <div class="text-xs text-sky-400 font-black mb-3">${item.p} ₽</div>
-                    <button onclick="removeFromCart('${key}')" class="w-full bg-red-500/10 text-red-500 text-[9px] py-1.5 rounded-lg font-black uppercase">Удалить</button>
-                </div>`;
-            }).join('');
-            
-            const total = Object.values(cartData).reduce((sum, item) => sum + item.p, 0);
-            document.getElementById('cart-total-price').innerText = total.toLocaleString() + " ₽";
-            document.getElementById('cart-total-box').classList.remove('hidden');
-        }
-
-        function removeFromCart(key) {
-            db.ref('users/' + currentUserId + '/cart/' + key).remove();
-        }
-
-        function checkoutAllCart() {
-            const user = userDB[currentUserId];
-            const cartData = user.cart || {};
-            const total = Object.values(cartData).reduce((sum, item) => sum + item.p, 0);
-            
-            if ((user.balance || 0) >= total) {
-                db.ref('users/' + currentUserId + '/balance').set(user.balance - total);
-                Object.values(cartData).forEach(item => {
-                    db.ref('users/' + currentUserId + '/inventory').push(item);
-                });
-                db.ref('users/' + currentUserId + '/cart').remove();
-                showToast("Успешно куплено!");
-            } else {
-                alert("Недостаточно баланса!");
-            }
-        }
-
-        function renderInventory() {
-            const list = document.getElementById('inventory-list');
-            const invData = userDB[currentUserId].inventory || {};
-            const keys = Object.keys(invData);
-            
-            list.innerHTML = keys.length === 0 ? 
-            '<div class="col-span-full py-12 text-center opacity-20 font-black uppercase">Инвентарь пуст</div>' : 
-            keys.map(key => {
-                const i = invData[key];
-                return `
-                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${i.r} border-opacity-30">
-                    <div class="text-2xl mb-3">${i.t}</div>
-                    <p class="text-[9px] font-black uppercase mb-3 truncate">${i.n}</p>
-                    <button onclick="openWdModal('${key}')" class="w-full bg-white text-black py-2 rounded-lg text-[9px] font-black uppercase">Вывести</button>
-                </div>`;
-            }).join('');
-        }
-
-        function openWdModal(key) {
-            activeId = key;
-            openModal('withdraw-modal');
-        }
-
-        function confirmWithdraw() {
-            if (!document.getElementById('pattern-input').value) return alert("Введите паттерн!");
-            db.ref('users/' + currentUserId + '/inventory/' + activeId).remove();
-            closeModals(); 
-            showToast("Отправлено на вывод!");
-        }
-
-        function logout() {
-            localStorage.removeItem('panda_active_uid');
-            location.reload();
-        }
-
-        function saveName() {
-            const v = document.getElementById('new-name-input').value;
-            if(v) { db.ref('users/' + currentUserId + '/name').set(v); closeModals(); }
-        }
-        function saveAvatar() {
-            const v = document.getElementById('new-avatar-input').value;
-            if(v) { db.ref('users/' + currentUserId + '/avatar').set(v); closeModals(); }
-        }
-        function showPage(id) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById(id + '-page').classList.add('active');
-            if (id === 'cart') renderCart();
-            if (id === 'profile') renderInventory();
-            if (id === 'admin') renderAdminPanel();
-        }
+        function cancelInvoice() { currentPendingDeposit = 0; document.getElementById('main-header').style.display = 'flex'; showPage('profile'); }
+        function renderCatalog() { document.getElementById('skin-catalog').innerHTML = SKINS.map((s, idx) => `<div class="skin-card ${s.r} p-5 flex flex-col items-center text-center"><div class="text-3xl mb-4">${s.t}</div><div class="text-[9px] font-black uppercase opacity-50 mb-1">${s.r}</div><h4 class="font-bold text-[10px] h-8 uppercase mb-4 px-2 leading-tight">${s.n}</h4><button onclick="addToCart(${idx})" class="w-full bg-white text-black py-2.5 rounded-xl font-black text-xs active:scale-95 transition">В корзину (${s.p} ₽)</button></div>`).join(''); }
+        function addToCart(idx) { if(!currentUserId) return; db.ref('users/' + currentUserId + '/cart').push(SKINS[idx]); showToast("Добавлено в корзину!"); }
+        function renderCart() { const list = document.getElementById('cart-list'); const cartData = userDB[currentUserId].cart || {}; const keys = Object.keys(cartData); if (keys.length === 0) { list.innerHTML = '<div class="col-span-full py-12 text-center opacity-30 font-black uppercase">В корзине пусто</div>'; document.getElementById('cart-total-box').classList.add('hidden'); return; } list.innerHTML = keys.map(key => { const item = cartData[key]; return `<div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${item.r} border-opacity-30"><div class="text-2xl mb-3">${item.t}</div><p class="text-[9px] font-black uppercase mb-2 truncate">${item.n}</p><div class="text-xs text-sky-400 font-black mb-3">${item.p} ₽</div><button onclick="removeFromCart('${key}')" class="w-full bg-red-500/10 text-red-500 text-[9px] py-1.5 rounded-lg font-black uppercase">Удалить</button></div>`; }).join(''); const total = Object.values(cartData).reduce((sum, item) => sum + item.p, 0); document.getElementById('cart-total-price').innerText = total.toLocaleString() + " ₽"; document.getElementById('cart-total-box').classList.remove('hidden'); }
+        function removeFromCart(key) { db.ref('users/' + currentUserId + '/cart/' + key).remove(); }
+        function checkoutAllCart() { const user = userDB[currentUserId]; const cartData = user.cart || {}; const total = Object.values(cartData).reduce((sum, item) => sum + item.p, 0); if ((user.balance || 0) >= total) { db.ref('users/' + currentUserId + '/balance').set(user.balance - total); Object.values(cartData).forEach(item => { db.ref('users/' + currentUserId + '/inventory').push(item); }); db.ref('users/' + currentUserId + '/cart').remove(); showToast("Успешно куплено!"); } else { alert("Недостаточно баланса!"); } }
+        function renderInventory() { const list = document.getElementById('inventory-list'); const invData = userDB[currentUserId].inventory || {}; const keys = Object.keys(invData); list.innerHTML = keys.length === 0 ? '<div class="col-span-full py-12 text-center opacity-20 font-black uppercase">Инвентарь пуст</div>' : keys.map(key => { const i = invData[key]; return `<div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${i.r} border-opacity-30"><div class="text-2xl mb-3">${i.t}</div><p class="text-[9px] font-black uppercase mb-3 truncate">${i.n}</p><button onclick="openWdModal('${key}')" class="w-full bg-white text-black py-2 rounded-lg text-[9px] font-black uppercase">Вывести</button></div>`; }).join(''); }
+        function openWdModal(key) { activeId = key; openModal('withdraw-modal'); }
+        function confirmWithdraw() { if (!document.getElementById('pattern-input').value) return alert("Введите паттерн!"); db.ref('users/' + currentUserId + '/inventory/' + activeId).remove(); closeModals(); showToast("Отправлено на вывод!"); }
+        function logout() { localStorage.removeItem('panda_active_uid'); location.reload(); }
+        function saveName() { const v = document.getElementById('new-name-input').value; if(v) { db.ref('users/' + currentUserId + '/name').set(v); closeModals(); } }
+        function saveAvatar() { const v = document.getElementById('new-avatar-input').value; if(v) { db.ref('users/' + currentUserId + '/avatar').set(v); closeModals(); } }
+        function showPage(id) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(id + '-page').classList.add('active'); if (id === 'cart') renderCart(); if (id === 'profile') renderInventory(); if (id === 'admin') renderAdminPanel(); }
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); }
         function showToast(m) { const t = document.getElementById('toast'); t.innerText = "✅ " + m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3000); }
