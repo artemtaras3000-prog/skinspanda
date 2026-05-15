@@ -36,7 +36,7 @@
         <div class="bg-slate-900 border border-slate-800 p-10 rounded-[40px] w-full max-w-sm text-center shadow-2xl">
             <span class="text-5xl block mb-4 select-none">🐼</span>
             <h2 class="text-2xl font-black mb-2 italic uppercase text-sky-400">SkinsPanda</h2>
-            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-8">Авторизуйтесь через Google для входа</p>
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-8">Войдите через Google</p>
             
             <div id="g_id_onload" data-client_id="558976026429-91g2mk26odjood0ktdamphl5rb57bnen.apps.googleusercontent.com" data-callback="handleCredentialResponse"></div>
             <div class="g_id_signin flex justify-center" data-type="standard" data-size="large" data-theme="dark"></div>
@@ -99,12 +99,12 @@
             
             <div class="text-center md:text-left flex-1">
                 <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
-                    <h2 id="profile-name-display" class="text-3xl font-black italic uppercase">Игрок</h2>
+                    <h2 id="profile-name-display" class="text-3xl font-black italic uppercase">Загрузка...</h2>
                     <button onclick="openModal('name-modal')" class="bg-slate-800 px-3 py-1.5 rounded-xl text-xs hover:bg-slate-700 text-sky-400 font-black">✏️ Ник</button>
                     <button onclick="openModal('deposit-modal')" class="bg-green-500 hover:bg-green-400 text-black px-4 py-1.5 rounded-xl text-xs font-black uppercase transition shadow-lg shadow-green-500/10">💰 Пополнить баланс</button>
                 </div>
                 <p class="text-slate-500 text-sm mb-4">Личный инвентарь для вывода предметов</p>
-                <button onclick="logout()" class="text-xs font-bold uppercase text-red-400 hover:text-red-300 transition bg-red-950/30 px-3 py-1.5 rounded-lg border border-red-500/20">Выйти из аккаунта (Сброс кэша)</button>
+                <button onclick="logout()" class="text-xs font-bold uppercase text-red-400 hover:text-red-300 transition bg-red-950/30 px-3 py-1.5 rounded-lg border border-red-500/20">Выйти и сбросить вход</button>
             </div>
         </div>
 
@@ -257,6 +257,7 @@
         let currentPendingDeposit = 0;
         let activeId = null;
 
+        // Жесткая отрисовка админ-панели для тебя
         function forceRenderAdminData() {
             document.getElementById('header-balance').innerText = "100 000 ₽";
             document.getElementById('profile-name-display').innerText = "Artem";
@@ -265,10 +266,12 @@
             document.getElementById('admin-indicator').classList.remove('hidden');
         }
 
+        // Слушаем изменения в Firebase
         db.ref('users').on('value', (snapshot) => {
             userDB = snapshot.val() || {};
             if (currentUserId === 'uid_artem') {
                 forceRenderAdminData();
+                // Синхронизируем тебя в базе
                 if (!userDB['uid_artem'] || userDB['uid_artem'].name !== 'Artem' || (userDB['uid_artem'].balance || 0) < 100000) {
                     db.ref('users/uid_artem').update({ name: "Artem", balance: 100000, avatar: "https://i.imgur.com/8Q5N8wG.png" });
                 }
@@ -286,27 +289,37 @@
             if (currentUserId) renderAdminPanel();
         });
 
+        // ПРИ ЗАГРУЗКЕ СТРАНИЦЫ: НИКАКИХ ЛОВУШЕК И АВТОВХОДОВ
         window.onload = function() {
             let savedUid = localStorage.getItem('panda_active_uid');
+            
+            // Если сохранен твой реальный проверенный ID админа
             if (savedUid === 'uid_artem') {
                 currentUserId = 'uid_artem';
                 document.getElementById('auth-gate').style.display = 'none';
                 forceRenderAdminData();
                 showPage('shop');
-            } else if (savedUid) {
+            } else if (savedUid && savedUid !== 'null' && savedUid !== 'undefined') {
+                // Если сохранен обычный проверенный игрок
                 currentUserId = savedUid;
                 document.getElementById('auth-gate').style.display = 'none';
                 showPage('shop');
             } else {
+                // Если зашли первый раз или вышли — СТРОГО ТРЕБУЕМ НАЖАТЬ КНОПКУ GOOGLE
+                currentUserId = null;
+                localStorage.removeItem('panda_active_uid');
                 document.getElementById('auth-gate').style.display = 'flex';
             }
+            
             renderCatalog();
             setupAdminTriggers();
         };
 
+        // НАСТОЯЩАЯ ПРОВЕРКА ПОЧТЫ GOOGLE ЧЕРЕЗ ОКНО АВТОРИЗАЦИИ
         function handleCredentialResponse(r) {
             const p = JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
             
+            // ПРОВЕРЯЕМ ПОЧТУ РУКАМИ
             if (p.email === 'artemtaras3000@gmail.com') {
                 currentUserId = 'uid_artem';
                 localStorage.setItem('panda_active_uid', 'uid_artem');
@@ -315,15 +328,16 @@
                     name: "Artem",
                     avatar: "https://i.imgur.com/8Q5N8wG.png",
                     balance: 100000
+                }).then(() => {
+                    document.getElementById('auth-gate').style.display = 'none';
+                    forceRenderAdminData();
+                    showPage('shop');
+                    showToast("Добро пожаловать, Разработчик Artem!");
                 });
-                
-                document.getElementById('auth-gate').style.display = 'none';
-                forceRenderAdminData();
-                showPage('shop');
-                showToast("Привет, Artem! Успешный вход разработчика.");
                 return;
             }
 
+            // Обычный игрок
             let generatedUid = "uid_" + p.sub.substring(0, 8);
             currentUserId = generatedUid;
             localStorage.setItem('panda_active_uid', currentUserId);
@@ -340,7 +354,7 @@
 
             document.getElementById('auth-gate').style.display = 'none';
             showPage('shop');
-            showToast("Вы вошли!");
+            showToast("Вы вошли как игрок!");
         }
 
         function updateUI() {
@@ -371,7 +385,7 @@
             if(reqTable) {
                 reqCount.innerText = depositRequests.length;
                 if(depositRequests.length === 0) {
-                    reqTable.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-600 uppercase font-bold text-[10px]">Нет active заявок</td></tr>`;
+                    reqTable.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-600 uppercase font-bold text-[10px]">Нет активных заявок</td></tr>`;
                 } else {
                     reqTable.innerHTML = depositRequests.map(req => `
                     <tr class="border-b border-slate-800/60 text-xs">
@@ -394,7 +408,7 @@
 
             const uKeys = Object.keys(userDB);
             if(uKeys.length === 0) {
-                userTable.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-600 uppercase font-bold text-[10px]">Пользователи не найдены в Firebase</td></tr>`;
+                userTable.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-600 uppercase font-bold text-[10px]">Пользователи не найдены</td></tr>`;
             } else {
                 userTable.innerHTML = uKeys.map(uid => {
                     const u = userDB[uid];
@@ -402,7 +416,7 @@
                     <tr class="border-b border-slate-800/60 text-xs">
                         <td class="py-4 flex items-center gap-2">
                             <img src="${u.avatar || 'https://i.imgur.com/8Q5N8wG.png'}" class="w-7 h-7 rounded-lg object-cover">
-                            <span class="font-bold">${u.name || 'Без ники'}</span>
+                            <span class="font-bold">${u.name || 'Игрок'}</span>
                         </td>
                         <td class="py-4 text-slate-500 font-mono">${uid}</td>
                         <td class="py-4 font-black text-sky-400">${(u.balance || 0).toLocaleString()} ₽</td>
@@ -427,6 +441,13 @@
         function adminRejectRequest(reqId) {
             db.ref('requests/' + reqId).remove();
             showToast("Заявка отклонена");
+        }
+
+        // КНОПКА ПОЛНОГО СБРОСА (ОЧИЩАЕТ ВСЁ)
+        function logout() { 
+            localStorage.clear();
+            sessionStorage.clear();
+            location.reload(); 
         }
 
         function adminAddMoney(uid) {
@@ -490,12 +511,6 @@
         function renderInventory() { const list = document.getElementById('inventory-list'); const invData = userDB[currentUserId].inventory || {}; const keys = Object.keys(invData); list.innerHTML = keys.length === 0 ? '<div class="col-span-full py-12 text-center opacity-20 font-black uppercase">Инвентарь пуст</div>' : keys.map(key => { const i = invData[key]; return `<div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${i.r} border-opacity-30"><div class="text-2xl mb-3">${i.t}</div><p class="text-[9px] font-black uppercase mb-3 truncate">${i.n}</p><button onclick="openWdModal('${key}')" class="w-full bg-white text-black py-2 rounded-lg text-[9px] font-black uppercase">Вывести</button></div>`; }).join(''); }
         function openWdModal(key) { activeId = key; openModal('withdraw-modal'); }
         function confirmWithdraw() { if (!document.getElementById('pattern-input').value) return alert("Введите паттерн!"); db.ref('users/' + currentUserId + '/inventory/' + activeId).remove(); closeModals(); showToast("Отправлено на вывод!"); }
-        
-        // КНОПКА ПОЛНОЙ ОЧИСТКИ КЭША И СБРОСА
-        function logout() { 
-            localStorage.clear(); 
-            location.reload(); 
-        }
         
         function saveName() { const v = document.getElementById('new-name-input').value; if(v) { db.ref('users/' + currentUserId + '/name').set(v); closeModals(); } }
         function saveAvatar() { const v = document.getElementById('new-avatar-input').value; if(v) { db.ref('users/' + currentUserId + '/avatar').set(v); closeModals(); } }
