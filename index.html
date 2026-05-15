@@ -6,6 +6,10 @@
     <title>SkinsPanda — Marketplace & Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <style>
         body { background-color: #0b0f1a; color: white; font-family: 'Inter', sans-serif; }
         .page { display: none; }
@@ -236,19 +240,47 @@
             { n: 'G22 | Frost Wyrm', p: 45, r: 'rare', t: '❄️' }
         ];
 
-        let userDB = JSON.parse(localStorage.getItem('panda_users')) || {};
-        let depositRequests = JSON.parse(localStorage.getItem('panda_requests')) || [];
+        // АВТОМАТИЧЕСКАЯ ОБЩАЯ БАЗА ДАННЫХFIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyAs8n6_k8R2hD_7YmlPqO03Xn8b-P9mRE4",
+            authDomain: "skinspanda-global.firebaseapp.com",
+            databaseURL: "https://skinspanda-global-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "skinspanda-global",
+            storageBucket: "skinspanda-global.appspot.com"
+        };
         
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let userDB = {};
+        let depositRequests = [];
         let currentUserId = null; 
         let currentPendingDeposit = 0;
         let activeId = null;
 
+        // Слушаем изменения в глобальной базе данных в реальном времени
+        db.ref('users').on('value', (snapshot) => {
+            userDB = snapshot.val() || {};
+            updateUI();
+            if (currentUserId && document.getElementById('profile-page').classList.contains('active')) {
+                renderInventory();
+            }
+            if (currentUserId && document.getElementById('cart-page').classList.contains('active')) {
+                renderCart();
+            }
+        });
+
+        db.ref('requests').on('value', (snapshot) => {
+            const data = snapshot.val() || {};
+            depositRequests = Object.keys(data).map(key => ({ requestId: key, ...data[key] }));
+            if (currentUserId) renderAdminPanel();
+        });
+
         window.onload = function() {
             let savedUid = localStorage.getItem('panda_active_uid');
-            if (savedUid && userDB[savedUid]) {
+            if (savedUid) {
                 currentUserId = savedUid;
                 document.getElementById('auth-gate').style.display = 'none';
-                updateUI();
                 showPage('shop');
             } else {
                 document.getElementById('auth-gate').style.display = 'flex';
@@ -257,47 +289,37 @@
             setupAdminTriggers();
         };
 
-        function saveDB() {
-            localStorage.setItem('panda_users', JSON.stringify(userDB));
-            localStorage.setItem('panda_requests', JSON.stringify(depositRequests));
-        }
-
         function handleCredentialResponse(r) {
             const p = JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-            
             let generatedUid = "uid_" + p.sub.substring(0, 8);
-            if (p.email === 'artemtaras3000@gmail.com') {
-                generatedUid = 'uid_artem';
-            }
-            
-            if(!userDB[generatedUid]) {
-                userDB[generatedUid] = { name: p.name, avatar: p.picture, balance: 0, cart: [], inventory: [] };
-            } else {
-                userDB[generatedUid].avatar = p.picture;
-            }
-            
-            if (generatedUid === 'uid_artem') {
-                userDB[generatedUid].name = "Artem"; 
-            }
+            if (p.email === 'artemtaras3000@gmail.com') generatedUid = 'uid_artem';
             
             currentUserId = generatedUid;
             localStorage.setItem('panda_active_uid', currentUserId);
-            
-            saveDB();
+
+            // Если пользователя нет в онлайн-базе, создаем его там
+            if (!userDB[currentUserId]) {
+                db.ref('users/' + currentUserId).set({
+                    name: currentUserId === 'uid_artem' ? "Artem" : p.name,
+                    avatar: p.picture,
+                    balance: 0,
+                    cart: [],
+                    inventory: []
+                });
+            }
+
             document.getElementById('auth-gate').style.display = 'none';
-            updateUI();
             showPage('shop');
-            showToast("Вы вошли как " + userDB[currentUserId].name);
+            showToast("Вы вошли!");
         }
 
         function updateUI() {
             if(!currentUserId || !userDB[currentUserId]) return;
-            
             const user = userDB[currentUserId];
-            document.getElementById('header-balance').innerText = user.balance.toLocaleString() + " ₽";
-            document.getElementById('cart-count').innerText = user.cart.length;
-            document.getElementById('header-avatar').src = user.avatar;
             
+            document.getElementById('header-balance').innerText = (user.balance || 0).toLocaleString() + " ₽";
+            document.getElementById('cart-count').innerText = user.cart ? Object.keys(user.cart).length : 0;
+            document.getElementById('header-avatar').src = user.avatar;
             document.getElementById('profile-name-display').innerText = user.name;
             document.getElementById('profile-avatar-big').src = user.avatar;
 
@@ -307,7 +329,6 @@
             } else {
                 document.getElementById('admin-indicator').classList.add('hidden');
             }
-            renderAdminPanel();
         }
 
         function setupAdminTriggers() {
@@ -321,10 +342,6 @@
         }
 
         function renderAdminPanel() {
-            if(!currentUserId || !userDB[currentUserId]) return;
-            const adminName = userDB[currentUserId].name.toLowerCase().trim();
-            if(adminName !== 'artem' && adminName !== 'артем' && currentUserId !== 'uid_artem') return;
-
             const reqTable = document.getElementById('admin-requests-table');
             const reqCount = document.getElementById('admin-requests-count');
             if(reqTable) {
@@ -341,8 +358,8 @@
                         <td class="py-4 text-slate-500 font-mono">${req.uid}</td>
                         <td class="py-4 font-black text-green-400">+ ${req.amount} ₽</td>
                         <td class="py-4 text-right flex justify-end gap-2">
-                            <button onclick="adminAcceptRequest(${req.requestId})" class="bg-green-500 hover:bg-green-400 text-black px-3 py-1.5 rounded-lg font-black uppercase text-[10px]">Принять</button>
-                            <button onclick="adminRejectRequest(${req.requestId})" class="bg-red-500 hover:bg-red-400 text-white px-3 py-1.5 rounded-lg font-black uppercase text-[10px]">Отклонить</button>
+                            <button onclick="adminAcceptRequest('${req.requestId}', '${req.uid}', ${req.amount})" class="bg-green-500 hover:bg-green-400 text-black px-3 py-1.5 rounded-lg font-black uppercase text-[10px]">Принять</button>
+                            <button onclick="adminRejectRequest('${req.requestId}')" class="bg-red-500 hover:bg-red-400 text-white px-3 py-1.5 rounded-lg font-black uppercase text-[10px]">Отклонить</button>
                         </td>
                     </tr>`).join('');
                 }
@@ -360,7 +377,7 @@
                         <span class="font-bold">${u.name}</span>
                     </td>
                     <td class="py-4 text-slate-500 font-mono">${uid}</td>
-                    <td class="py-4 font-black text-sky-400">${u.balance.toLocaleString()} ₽</td>
+                    <td class="py-4 font-black text-sky-400">${(u.balance || 0).toLocaleString()} ₽</td>
                     <td class="py-4 text-right flex justify-end gap-2">
                         <button onclick="adminAddMoney('${uid}')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg font-black text-[10px] uppercase">+ Баланс</button>
                         <button onclick="adminGiveSkin('${uid}')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg font-black text-[10px] uppercase">+ Скин</button>
@@ -369,25 +386,26 @@
             }).join('');
         }
 
-        function adminAcceptRequest(reqId) {
-            const req = depositRequests.find(x => x.requestId === reqId);
-            if(req && userDB[req.uid]) {
-                userDB[req.uid].balance += req.amount;
-                depositRequests = depositRequests.filter(x => x.requestId !== reqId);
-                saveDB(); updateUI(); showToast("Баланс игроку начислен!");
+        function adminAcceptRequest(reqId, uid, amount) {
+            if(userDB[uid]) {
+                const currentBalance = userDB[uid].balance || 0;
+                db.ref('users/' + uid + '/balance').set(currentBalance + amount);
+                db.ref('requests/' + reqId).remove();
+                showToast("Баланс игроку начислен!");
             }
         }
 
         function adminRejectRequest(reqId) {
-            depositRequests = depositRequests.filter(x => x.requestId !== reqId);
-            saveDB(); updateUI(); showToast("Заявка отклонена");
+            db.ref('requests/' + reqId).remove();
+            showToast("Заявка отклонена");
         }
 
         function adminAddMoney(uid) {
             const num = prompt(`Сумма для ${userDB[uid].name}:`);
             if(num && !isNaN(num)) {
-                userDB[uid].balance += parseInt(num);
-                saveDB(); updateUI(); showToast("Баланс изменен!");
+                const currentBalance = userDB[uid].balance || 0;
+                db.ref('users/' + uid + '/balance').set(currentBalance + parseInt(num));
+                showToast("Баланс изменен!");
             }
         }
 
@@ -395,8 +413,8 @@
             let list = SKINS.map((s, i) => `${i}) ${s.n}`).join('\n');
             const idx = prompt(`Номер скина:\n\n${list}`);
             if(idx !== null && SKINS[idx]) {
-                userDB[uid].inventory.push({ ...SKINS[idx], id: Date.now() + Math.random() });
-                saveDB(); updateUI(); showToast("Скин выдан!");
+                db.ref('users/' + uid + '/inventory').push(SKINS[idx]);
+                showToast("Скин выдан!");
             }
         }
 
@@ -417,14 +435,12 @@
         }
 
         function submitInvoiceRequest() {
-            depositRequests.push({
-                requestId: Date.now(),
+            db.ref('requests').push({
                 uid: currentUserId,
                 name: userDB[currentUserId].name,
                 avatar: userDB[currentUserId].avatar,
                 amount: currentPendingDeposit
             });
-            saveDB();
             alert("Заявка отправлена на проверку к Artem!");
             document.getElementById('main-header').style.display = 'flex';
             currentPendingDeposit = 0;
@@ -449,43 +465,52 @@
 
         function addToCart(idx) {
             if(!currentUserId) return;
-            userDB[currentUserId].cart.push({ ...SKINS[idx], cartId: Date.now() + Math.random() });
-            saveDB(); updateUI(); showToast("Добавлено в корзину!");
+            db.ref('users/' + currentUserId + '/cart').push(SKINS[idx]);
+            showToast("Добавлено в корзину!");
         }
 
         function renderCart() {
             const list = document.getElementById('cart-list');
-            const cartData = userDB[currentUserId].cart;
-            if (cartData.length === 0) {
+            const cartData = userDB[currentUserId].cart || {};
+            const keys = Object.keys(cartData);
+            
+            if (keys.length === 0) {
                 list.innerHTML = '<div class="col-span-full py-12 text-center opacity-30 font-black uppercase">В корзине пусто</div>';
                 document.getElementById('cart-total-box').classList.add('hidden');
                 return;
             }
-            list.innerHTML = cartData.map(item => `
+            list.innerHTML = keys.map(key => {
+                const item = cartData[key];
+                return `
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${item.r} border-opacity-30">
                     <div class="text-2xl mb-3">${item.t}</div>
                     <p class="text-[9px] font-black uppercase mb-2 truncate">${item.n}</p>
                     <div class="text-xs text-sky-400 font-black mb-3">${item.p} ₽</div>
-                    <button onclick="removeFromCart(${item.cartId})" class="w-full bg-red-500/10 text-red-500 text-[9px] py-1.5 rounded-lg font-black uppercase">Удалить</button>
-                </div>`).join('');
-            const total = cartData.reduce((sum, item) => sum + item.p, 0);
+                    <button onclick="removeFromCart('${key}')" class="w-full bg-red-500/10 text-red-500 text-[9px] py-1.5 rounded-lg font-black uppercase">Удалить</button>
+                </div>`;
+            }).join('');
+            
+            const total = Object.values(cartData).reduce((sum, item) => sum + item.p, 0);
             document.getElementById('cart-total-price').innerText = total.toLocaleString() + " ₽";
             document.getElementById('cart-total-box').classList.remove('hidden');
         }
 
-        function removeFromCart(cartId) {
-            userDB[currentUserId].cart = userDB[currentUserId].cart.filter(x => x.cartId !== cartId);
-            saveDB(); updateUI(); renderCart();
+        function removeFromCart(key) {
+            db.ref('users/' + currentUserId + '/cart/' + key).remove();
         }
 
         function checkoutAllCart() {
             const user = userDB[currentUserId];
-            const total = user.cart.reduce((sum, item) => sum + item.p, 0);
-            if (user.balance >= total) {
-                user.balance -= total;
-                user.cart.forEach(item => user.inventory.push({ ...item, id: Date.now() + Math.random() }));
-                user.cart = [];
-                saveDB(); updateUI(); renderCart(); showToast("Успешно куплено!");
+            const cartData = user.cart || {};
+            const total = Object.values(cartData).reduce((sum, item) => sum + item.p, 0);
+            
+            if ((user.balance || 0) >= total) {
+                db.ref('users/' + currentUserId + '/balance').set(user.balance - total);
+                Object.values(cartData).forEach(item => {
+                    db.ref('users/' + currentUserId + '/inventory').push(item);
+                });
+                db.ref('users/' + currentUserId + '/cart').remove();
+                showToast("Успешно куплено!");
             } else {
                 alert("Недостаточно баланса!");
             }
@@ -493,26 +518,32 @@
 
         function renderInventory() {
             const list = document.getElementById('inventory-list');
-            const invData = userDB[currentUserId].inventory;
-            list.innerHTML = invData.length === 0 ? 
+            const invData = userDB[currentUserId].inventory || {};
+            const keys = Object.keys(invData);
+            
+            list.innerHTML = keys.length === 0 ? 
             '<div class="col-span-full py-12 text-center opacity-20 font-black uppercase">Инвентарь пуст</div>' : 
-            invData.map(i => `
+            keys.map(key => {
+                const i = invData[key];
+                return `
                 <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${i.r} border-opacity-30">
                     <div class="text-2xl mb-3">${i.t}</div>
                     <p class="text-[9px] font-black uppercase mb-3 truncate">${i.n}</p>
-                    <button onclick="openWdModal(${i.id})" class="w-full bg-white text-black py-2 rounded-lg text-[9px] font-black uppercase">Вывести</button>
-                </div>`).join('');
+                    <button onclick="openWdModal('${key}')" class="w-full bg-white text-black py-2 rounded-lg text-[9px] font-black uppercase">Вывести</button>
+                </div>`;
+            }).join('');
         }
 
-        function openWdModal(id) {
-            activeId = id;
+        function openWdModal(key) {
+            activeId = key;
             openModal('withdraw-modal');
         }
 
         function confirmWithdraw() {
             if (!document.getElementById('pattern-input').value) return alert("Введите паттерн!");
-            userDB[currentUserId].inventory = userDB[currentUserId].inventory.filter(x => x.id !== activeId);
-            saveDB(); renderInventory(); closeModals(); showToast("Отправлено на вывод!");
+            db.ref('users/' + currentUserId + '/inventory/' + activeId).remove();
+            closeModals(); 
+            showToast("Отправлено на вывод!");
         }
 
         function logout() {
@@ -522,11 +553,11 @@
 
         function saveName() {
             const v = document.getElementById('new-name-input').value;
-            if(v) { userDB[currentUserId].name = v; saveDB(); updateUI(); closeModals(); }
+            if(v) { db.ref('users/' + currentUserId + '/name').set(v); closeModals(); }
         }
         function saveAvatar() {
             const v = document.getElementById('new-avatar-input').value;
-            if(v) { userDB[currentUserId].avatar = v; saveDB(); updateUI(); closeModals(); }
+            if(v) { db.ref('users/' + currentUserId + '/avatar').set(v); closeModals(); }
         }
         function showPage(id) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
