@@ -34,7 +34,7 @@
 
     <div id="auth-gate" class="fixed inset-0 bg-[#0b0f1a] z-[999] flex flex-col items-center justify-center p-6" style="display: flex;">
         <div class="bg-slate-900 border border-slate-800 p-10 rounded-[40px] w-full max-w-sm text-center shadow-2xl">
-            <span onclick="secretClick()" class="text-5xl block mb-4 cursor-pointer select-none active:scale-95 transition">🐼</span>
+            <span class="text-5xl block mb-4 select-none">🐼</span>
             <h2 class="text-2xl font-black mb-2 italic uppercase text-sky-400">SkinsPanda</h2>
             <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-8">Авторизуйтесь через Google для входа</p>
             
@@ -256,7 +256,6 @@
         let currentUserId = null; 
         let currentPendingDeposit = 0;
         let activeId = null;
-        let clickCount = 0; // Счётчик для секретки
 
         function forceRenderAdminData() {
             document.getElementById('header-balance').innerText = "100 000 ₽";
@@ -304,36 +303,32 @@
             setupAdminTriggers();
         };
 
-        // ТВОЯ СЕКРЕТНАЯ ФУНКЦИЯ КЛИКОВ ПО ПАНДЕ
-        function secretClick() {
-            clickCount++;
-            if (clickCount >= 5) {
-                clickCount = 0; // Сброс
-                const password = prompt("Введите секретный пароль администратора:");
-                if (password === 'panda2026') {
-                    currentUserId = 'uid_artem';
-                    localStorage.setItem('panda_active_uid', 'uid_artem');
-                    document.getElementById('auth-gate').style.display = 'none';
-                    forceRenderAdminData();
-                    showPage('shop');
-                    showToast("Привет, Artem! Админка активирована.");
-                    db.ref('users/uid_artem').set({
-                        name: "Artem",
-                        avatar: "https://i.imgur.com/8Q5N8wG.png",
-                        balance: 100000,
-                        cart: [],
-                        inventory: []
-                    });
-                } else if (password !== null) {
-                    alert("Неверный пароль!");
-                }
-            }
-        }
-
+        // НАДЕЖНЫЙ ВХОД ЧЕРЕЗ ТВОЮ GOOGLE ПОЧТУ
         function handleCredentialResponse(r) {
             const p = JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-            let generatedUid = "uid_" + p.sub.substring(0, 8);
             
+            // ЖЕСТКАЯ ПРОВЕРКА НА ТВОЙ EMAIL
+            if (p.email === 'artemtaras3000@gmail.com') {
+                currentUserId = 'uid_artem';
+                localStorage.setItem('panda_active_uid', 'uid_artem');
+                
+                db.ref('users/uid_artem').set({
+                    name: "Artem",
+                    avatar: "https://i.imgur.com/8Q5N8wG.png",
+                    balance: 100000,
+                    cart: [],
+                    inventory: []
+                });
+                
+                document.getElementById('auth-gate').style.display = 'none';
+                forceRenderAdminData();
+                showPage('shop');
+                showToast("Привет, Artem! Админка успешно активирована через Google.");
+                return;
+            }
+
+            // Обычный вход для остальных игроков
+            let generatedUid = "uid_" + p.sub.substring(0, 8);
             currentUserId = generatedUid;
             localStorage.setItem('panda_active_uid', currentUserId);
 
