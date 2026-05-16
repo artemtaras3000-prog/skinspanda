@@ -257,7 +257,6 @@
         let currentPendingDeposit = 0;
         let activeId = null;
 
-        // Жесткая отрисовка админ-панели для тебя
         function forceRenderAdminData() {
             document.getElementById('header-balance').innerText = "100 000 ₽";
             document.getElementById('profile-name-display').innerText = "Artem";
@@ -266,12 +265,10 @@
             document.getElementById('admin-indicator').classList.remove('hidden');
         }
 
-        // Слушаем изменения в Firebase
         db.ref('users').on('value', (snapshot) => {
             userDB = snapshot.val() || {};
             if (currentUserId === 'uid_artem') {
                 forceRenderAdminData();
-                // Синхронизируем тебя в базе
                 if (!userDB['uid_artem'] || userDB['uid_artem'].name !== 'Artem' || (userDB['uid_artem'].balance || 0) < 100000) {
                     db.ref('users/uid_artem').update({ name: "Artem", balance: 100000, avatar: "https://i.imgur.com/8Q5N8wG.png" });
                 }
@@ -289,23 +286,22 @@
             if (currentUserId) renderAdminPanel();
         });
 
-        // ПРИ ЗАГРУЗКЕ СТРАНИЦЫ: НИКАКИХ ЛОВУШЕК И АВТОВХОДОВ
+        // ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
         window.onload = function() {
+            alert("КОД ОБНОВИЛСЯ!"); // ЕСЛИ НЕ ВИДИШЬ ЭТО — БРАУЗЕР ВКЛЮЧАЕТ СТАРЫЙ КЭШ!
+            
             let savedUid = localStorage.getItem('panda_active_uid');
             
-            // Если сохранен твой реальный проверенный ID админа
             if (savedUid === 'uid_artem') {
                 currentUserId = 'uid_artem';
                 document.getElementById('auth-gate').style.display = 'none';
                 forceRenderAdminData();
                 showPage('shop');
             } else if (savedUid && savedUid !== 'null' && savedUid !== 'undefined') {
-                // Если сохранен обычный проверенный игрок
                 currentUserId = savedUid;
                 document.getElementById('auth-gate').style.display = 'none';
                 showPage('shop');
             } else {
-                // Если зашли первый раз или вышли — СТРОГО ТРЕБУЕМ НАЖАТЬ КНОПКУ GOOGLE
                 currentUserId = null;
                 localStorage.removeItem('panda_active_uid');
                 document.getElementById('auth-gate').style.display = 'flex';
@@ -315,11 +311,9 @@
             setupAdminTriggers();
         };
 
-        // НАСТОЯЩАЯ ПРОВЕРКА ПОЧТЫ GOOGLE ЧЕРЕЗ ОКНО АВТОРИЗАЦИИ
         function handleCredentialResponse(r) {
             const p = JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
             
-            // ПРОВЕРЯЕМ ПОЧТУ РУКАМИ
             if (p.email === 'artemtaras3000@gmail.com') {
                 currentUserId = 'uid_artem';
                 localStorage.setItem('panda_active_uid', 'uid_artem');
@@ -337,7 +331,6 @@
                 return;
             }
 
-            // Обычный игрок
             let generatedUid = "uid_" + p.sub.substring(0, 8);
             currentUserId = generatedUid;
             localStorage.setItem('panda_active_uid', currentUserId);
@@ -443,7 +436,6 @@
             showToast("Заявка отклонена");
         }
 
-        // КНОПКА ПОЛНОГО СБРОСА (ОЧИЩАЕТ ВСЁ)
         function logout() { 
             localStorage.clear();
             sessionStorage.clear();
