@@ -3,28 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SkinsPanda — Marketplace & Admin</title>
+    <title>SkinsPanda — Admin Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
     <style>
-        body { background-color: #0b0f1a; color: white; font-family: 'Inter', sans-serif; }
+        body { background-color: #0b0f1a; color: white; font-family: sans-serif; }
         .page { display: none; }
         .page.active { display: block; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
-        .modal.active { display: flex; }
-        
-        .rare { border: 2px solid #4361ee; background: linear-gradient(180deg, #1e293b, #1e3a8a); }
-        .epic { border: 2px solid #9b5de5; background: linear-gradient(180deg, #1e293b, #4c1d95); }
-        .legendary { border: 2px solid #f15bb5; background: linear-gradient(180deg, #1e293b, #831843); }
-        .arcane { border: 2px solid #ef233c; background: linear-gradient(180deg, #1e293b, #7f1d1d); }
-        .knife { border: 2px solid #fee440; background: linear-gradient(180deg, #1e293b, #713f12); }
-
-        .skin-card { border-radius: 20px; transition: 0.3s; }
-        .skin-card:hover { transform: translateY(-3px); }
         #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #10b981; padding: 12px 25px; border-radius: 12px; display: none; z-index: 1000; font-weight: bold; }
     </style>
 </head>
@@ -32,130 +18,39 @@
 
     <div id="toast">✅ Успешно!</div>
 
-    <div id="auth-gate" class="fixed inset-0 bg-[#0b0f1a] z-[999] flex flex-col items-center justify-center p-6" style="display: flex;">
+    <div id="auth-gate" class="fixed inset-0 bg-[#0b0f1a] z-[999] flex flex-col items-center justify-center p-6">
         <div class="bg-slate-900 border border-slate-800 p-10 rounded-[40px] w-full max-w-sm text-center shadow-2xl">
-            <span class="text-5xl block mb-4 select-none">🐼</span>
+            <span class="text-5xl block mb-4">🐼</span>
             <h2 class="text-2xl font-black mb-2 italic uppercase text-sky-400">SkinsPanda</h2>
-            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-8">Войдите через Google</p>
-            
-            <div id="g_id_onload" data-client_id="558976026429-91g2mk26odjood0ktdamphl5rb57bnen.apps.googleusercontent.com" data-callback="handleCredentialResponse"></div>
-            <div class="g_id_signin flex justify-center" data-type="standard" data-size="large" data-theme="dark"></div>
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-8">Панель Разработчика</p>
+            <button onclick="loginAsArtem()" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-black py-4 rounded-2xl font-black uppercase tracking-widest transition active:scale-95">
+                Войти как Artem
+            </button>
         </div>
     </div>
 
     <div id="app-content" style="display: none;">
-        <header id="main-header" class="p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 bg-slate-900/90 backdrop-blur-lg z-50">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="showPage('shop')">
+        <header class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+            <div class="flex items-center gap-3">
                 <span class="text-3xl">🐼</span>
-                <div class="text-xl font-black text-sky-400 italic uppercase">Skins<span class="text-white">Panda</span></div>
+                <div class="text-xl font-black text-sky-400 italic uppercase">Skins<span>Panda Admin</span></div>
             </div>
-            
-            <div class="flex items-center gap-3 md:gap-4">
-                <div id="admin-indicator" onclick="showPage('admin')" class="bg-amber-500/20 border border-amber-500/50 px-3 py-1.5 rounded-xl text-xs text-amber-500 font-black cursor-pointer hidden">
-                    🔑 АДМИН (F2)
-                </div>
-
-                <div class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-sm">
-                    <span id="header-balance" class="font-black text-sky-400">0 ₽</span>
-                </div>
-                
-                <button onclick="showPage('cart')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-xl font-black text-xs text-white flex items-center gap-2 transition relative">
-                    <span>🛒 КОРЗИНА</span>
-                    <span id="cart-count" class="bg-sky-500 text-black text-[10px] px-2 py-0.5 rounded-full font-black">0</span>
-                </button>
-
-                <button onclick="showPage('profile')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-xl font-black text-xs text-slate-300 flex items-center gap-2 transition">
-                    <span>👤 ПРОФИЛЬ</span>
-                </button>
-
-                <img id="header-avatar" onclick="showPage('profile')" src="" class="w-10 h-10 rounded-xl cursor-pointer border-2 border-slate-700 object-cover">
+            <div class="bg-amber-500/20 border border-amber-500/50 px-3 py-1.5 rounded-xl text-xs text-amber-500 font-black">
+                🔑 РАЗРАБОТЧИК АКТИВЕН
             </div>
         </header>
 
-        <main id="shop-page" class="page active p-6 max-w-7xl mx-auto">
-            <h2 class="text-3xl font-black italic mb-8 uppercase">Каталог скинов</h2>
-            <div id="skin-catalog" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
-        </main>
-
-        <main id="cart-page" class="page p-6 max-w-5xl mx-auto">
-            <h2 class="text-3xl font-black italic mb-2 uppercase">Твоя Корзина</h2>
-            <p class="text-slate-500 text-sm mb-8">Здесь находятся скины, добавленные на покупку.</p>
-            <div id="cart-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8"></div>
-            
-            <div id="cart-total-box" class="bg-slate-900 border border-slate-800 p-6 rounded-3xl flex justify-between items-center hidden">
-                <div>
-                    <span class="text-xs text-slate-500 font-black uppercase tracking-wider block">Итого к оплате:</span>
-                    <span id="cart-total-price" class="text-2xl font-black text-white">0 ₽</span>
-                </div>
-                <button onclick="checkoutAllCart()" class="bg-green-500 hover:bg-green-400 text-black font-black uppercase px-8 py-4 rounded-2xl tracking-widest transition">Купить всё</button>
-            </div>
-        </main>
-
-        <main id="profile-page" class="page p-6 max-w-5xl mx-auto">
-            <div class="bg-slate-900 rounded-[40px] p-8 border border-slate-800 mb-10 shadow-2xl flex flex-col md:flex-row items-center gap-8">
-                <div class="relative group cursor-pointer" onclick="openModal('avatar-modal')">
-                    <img id="profile-avatar-big" src="" class="w-32 h-32 rounded-[35px] border-4 border-slate-800 object-cover shadow-2xl">
-                    <div class="absolute inset-0 bg-black/60 rounded-[35px] opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-[10px] font-black uppercase text-center p-2">Сменить</div>
-                </div>
-                
-                <div class="text-center md:text-left flex-1">
-                    <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
-                        <h2 id="profile-name-display" class="text-3xl font-black italic uppercase">Загрузка...</h2>
-                        <button onclick="openModal('name-modal')" class="bg-slate-800 px-3 py-1.5 rounded-xl text-xs hover:bg-slate-700 text-sky-400 font-black">✏️ Ник</button>
-                        <button onclick="openModal('deposit-modal')" class="bg-green-500 hover:bg-green-400 text-black px-4 py-1.5 rounded-xl text-xs font-black uppercase transition shadow-lg shadow-green-500/10">💰 Пополнить баланс</button>
-                    </div>
-                    <p class="text-slate-500 text-sm mb-4">Личный инвентарь для вывода предметов</p>
-                    <button onclick="logout()" class="text-xs font-bold uppercase text-red-400 hover:text-red-300 transition bg-red-950/30 px-3 py-1.5 rounded-lg border border-red-500/20">Выйти из аккаунта</button>
-                </div>
-            </div>
-
-            <h3 class="text-xl font-black mb-6 italic uppercase text-slate-400 flex items-center gap-4">
-                <span>🎁 Твой Инвентарь</span>
-                <div class="h-[1px] flex-1 bg-slate-800/50"></div>
-            </h3>
-            <div id="inventory-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
-        </main>
-
-        <main id="payment-page" class="page p-6 max-w-md mx-auto">
-            <div class="bg-slate-900 border border-slate-800 p-8 rounded-[40px] text-center shadow-2xl mt-6">
-                <h2 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">SkinsPanda Pay</h2>
-                <div class="bg-slate-950 p-4 rounded-3xl border border-slate-800 mb-6">
-                    <span class="text-xs text-slate-500 font-bold uppercase block mb-1">Сумма к оплате</span>
-                    <span id="invoice-amount" class="text-3xl font-black text-green-400">0 ₽</span>
-                </div>
-                <div class="bg-white p-4 rounded-3xl inline-block mb-6 shadow-xl">
-                    <img src="qr.jpg" class="w-56 h-56 rounded-xl" alt="QR Код">
-                </div>
-                <div class="text-xs text-amber-400 font-black uppercase tracking-wider mb-6 px-4">
-                    ⚠️ Переведите <span id="invoice-amount-text" class="text-white">0 ₽</span> по QR-коду СБП. Администратор проверит поступление.
-                </div>
-                <button onclick="submitInvoiceRequest()" class="w-full bg-green-500 hover:bg-green-400 text-black py-4 rounded-2xl font-black uppercase tracking-widest transition active:scale-95">Я оплатил, отправить на проверку</button>
-                <button onclick="cancelInvoice()" class="mt-4 text-slate-500 text-xs font-bold uppercase block mx-auto">Назад</button>
-            </div>
-        </main>
-
-        <main id="admin-page" class="page p-6 max-w-6xl mx-auto">
-            <div class="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
-                <div>
-                    <h2 class="text-3xl font-black italic text-amber-500 uppercase">Панель Управления Artem</h2>
-                    <p class="text-xs text-slate-500 font-bold uppercase mt-1">Заявки на оплату и выдача ресурсов</p>
-                </div>
-                <button onclick="showPage('shop')" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl font-black text-xs">Выйти в магазин</button>
-            </div>
-
+        <main class="p-6 max-w-6xl mx-auto">
             <div class="bg-slate-900 border border-slate-800 rounded-[35px] p-6 shadow-2xl mb-10">
-                <h3 class="text-lg font-black uppercase italic mb-6 text-amber-400 flex items-center gap-2">
-                    <span>🔔 Активные заявки на оплату</span>
-                    <span id="admin-requests-count" class="bg-amber-400 text-black text-xs px-2 py-0.5 rounded-full">0</span>
-                </h3>
+                <h3 class="text-lg font-black uppercase italic mb-6 text-amber-400">🔔 Заявки на пополнение баланса (<span id="req-count">0</span>)</h3>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left">
                         <thead>
                             <tr class="border-b border-slate-800 text-[10px] text-slate-500 font-black uppercase">
                                 <th class="pb-3">Игрок</th>
-                                <th class="pb-3">ID пользователя</th>
-                                <th class="pb-3">Сумма заявки</th>
-                                <th class="pb-3 text-right">Проверка платежа</th>
+                                <th class="pb-3">ID</th>
+                                <th class="pb-3">Сумма</th>
+                                <th class="pb-3 text-right">Действие</th>
                             </tr>
                         </thead>
                         <tbody id="admin-requests-table"></tbody>
@@ -164,15 +59,15 @@
             </div>
 
             <div class="bg-slate-900 border border-slate-800 rounded-[35px] p-6 shadow-2xl">
-                <h3 class="text-lg font-black uppercase italic mb-6 text-slate-300">👥 Список всех пользователей</h3>
+                <h3 class="text-lg font-black uppercase italic mb-6 text-slate-300">👥 Все пользователи базы данных</h3>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left">
                         <thead>
                             <tr class="border-b border-slate-800 text-[10px] text-slate-500 font-black uppercase">
                                 <th class="pb-3">Пользователь</th>
-                                <th class="pb-3">ID / Ссылка</th>
-                                <th class="pb-3">Текущий баланс</th>
-                                <th class="pb-3 text-right">Действия администратора</th>
+                                <th class="pb-3">ID игрока</th>
+                                <th class="pb-3">Баланс</th>
+                                <th class="pb-3 text-right">Управление</th>
                             </tr>
                         </thead>
                         <tbody id="admin-users-table"></tbody>
@@ -182,66 +77,7 @@
         </main>
     </div>
 
-    <div id="deposit-modal" class="modal">
-        <div class="bg-slate-900 p-8 rounded-[40px] border border-slate-800 w-full max-w-md mx-4 shadow-2xl">
-            <h2 class="text-xl font-black italic uppercase mb-2 text-center">Пополнение баланса</h2>
-            <p class="text-[10px] text-slate-500 text-center uppercase font-bold tracking-wider mb-6">Введите сумму платежа</p>
-            <div class="mb-6">
-                <label class="text-[10px] text-slate-500 uppercase font-black block mb-1.5 ml-2">Сумма (Мин. 10 ₽):</label>
-                <input type="number" id="deposit-amount" min="10" placeholder="50" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 font-bold text-white outline-none focus:border-sky-500">
-                <p id="deposit-error" class="text-red-500 text-xs font-bold mt-2 ml-2 hidden">❌ Минимальная сумма пополнения — 10 ₽</p>
-            </div>
-            <button onclick="goToPaymentPage()" class="w-full bg-sky-500 hover:bg-sky-400 text-black py-4 rounded-2xl font-black uppercase tracking-widest transition">Перейти к оплате</button>
-            <button onclick="closeModals()" class="mt-4 text-slate-500 text-xs font-bold uppercase block mx-auto">Отмена</button>
-        </div>
-    </div>
-
-    <div id="name-modal" class="modal">
-        <div class="bg-slate-900 p-8 rounded-[35px] border border-slate-800 w-full max-w-xs text-center">
-            <h3 class="font-black italic uppercase mb-6">Новый Никнейм</h3>
-            <input type="text" id="new-name-input" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 mb-6 text-center font-bold text-white outline-none">
-            <button onclick="saveName()" class="w-full bg-sky-500 py-3 rounded-xl font-black uppercase text-black">Сохранить</button>
-            <button onclick="closeModals()" class="mt-4 text-slate-500 text-[10px] font-black uppercase block mx-auto">Закрыть</button>
-        </div>
-    </div>
-
-    <div id="avatar-modal" class="modal">
-        <div class="bg-slate-900 p-8 rounded-[35px] border border-slate-800 w-full max-w-xs text-center">
-            <h3 class="font-black italic uppercase mb-6">Ссылка на аватар</h3>
-            <input type="text" id="new-avatar-input" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 mb-6 text-xs text-center text-white outline-none">
-            <button onclick="saveAvatar()" class="w-full bg-sky-500 py-3 rounded-xl font-black uppercase text-black">Обновить</button>
-            <button onclick="closeModals()" class="mt-4 text-slate-500 text-[10px] font-black uppercase block mx-auto">Закрыть</button>
-        </div>
-    </div>
-
-    <div id="withdraw-modal" class="modal">
-        <div class="bg-slate-900 p-8 rounded-[40px] border border-slate-800 w-full max-w-sm text-center">
-            <h2 class="text-xl font-black italic uppercase mb-6">Вывод в Standoff 2</h2>
-            <div class="bg-slate-800 p-6 rounded-3xl mb-6">
-                <div class="text-[10px] text-slate-400 font-black uppercase mb-2">Выставьте на рынок скинов</div>
-                <div class="text-lg font-black text-white mb-2 uppercase">G22 | FLOCK</div>
-                <div id="wd-price-box" class="text-2xl font-black text-green-400 mb-6">0.00 G</div>
-                <input type="number" id="pattern-input" placeholder="Твой паттерн лота" class="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 text-center text-sky-400 font-black outline-none focus:border-sky-500">
-            </div>
-            <button onclick="confirmWithdraw()" class="w-full bg-sky-500 py-4 rounded-2xl font-black text-black uppercase tracking-widest transition">Я Выставил</button>
-            <button onclick="closeModals()" class="mt-4 text-slate-500 text-xs font-bold uppercase block mx-auto">Отмена</button>
-        </div>
-    </div>
-
     <script>
-        const SKINS = [
-            { n: 'M9 | Scratch', p: 24500, r: 'knife', t: '🔪' },
-            { n: 'Karambit | Gold', p: 48000, r: 'knife', t: '🔪' },
-            { n: 'Butterfly | Legacy', p: 35000, r: 'knife', t: '🦋' },
-            { n: 'AKR | Treasure Hunter', p: 62000, r: 'arcane', t: '🔥' },
-            { n: 'AWM | Genesis', p: 4500, r: 'arcane', t: '⚡' },
-            { n: 'M4 | Necromancer', p: 3100, r: 'arcane', t: '💀' },
-            { n: 'AKR | Tiger', p: 950, r: 'legendary', t: '🐯' },
-            { n: 'M4 | Samurai', p: 1100, r: 'legendary', t: '👹' },
-            { n: 'USP | Genesis', p: 250, r: 'epic', t: '🔫' },
-            { n: 'G22 | Frost Wyrm', p: 45, r: 'rare', t: '❄️' }
-        ];
-
         const firebaseConfig = {
             apiKey: "AIzaSyAs8n6_k8R2hD_7YmlPqO03Xn8b-P9mRE4",
             authDomain: "skinspanda-global.firebaseapp.com",
@@ -252,270 +88,71 @@
         
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-
         let userDB = {};
-        let depositRequests = [];
-        let currentUserId = null; 
-        let currentPendingDeposit = 0;
-        let activeId = null;
-        let isFirebaseListening = false;
 
-        function startFirebaseListeners() {
-            if (isFirebaseListening) return;
-            isFirebaseListening = true;
-
-            db.ref('users').on('value', (snapshot) => {
-                userDB = snapshot.val() || {};
-                updateUI();
-                if (document.getElementById('profile-page').classList.contains('active')) renderInventory();
-                if (document.getElementById('cart-page').classList.contains('active')) renderCart();
-                if (currentUserId === 'uid_artem') renderAdminPanel();
-            });
-
+        function loginAsArtem() {
+            document.getElementById('auth-gate').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            
+            // Загружаем заявки
             db.ref('requests').on('value', (snapshot) => {
                 const data = snapshot.val() || {};
-                depositRequests = Object.keys(data).map(key => ({ requestId: key, ...data[key] }));
-                if (currentUserId === 'uid_artem') renderAdminPanel();
-            });
-        }
-
-        // ИСПРАВЛЕННЫЙ СТАРТ: ЕСЛИ СЕССИИ НЕТ — СТРОГО СТОИМ НА ЭКРАНЕ ВХОДА И НИЧЕГО НЕ КРУТИМ
-        window.onload = function() {
-            renderCatalog();
-            setupAdminTriggers();
-
-            let savedUid = localStorage.getItem('panda_active_uid');
-            
-            if (savedUid && savedUid !== 'null' && savedUid !== 'undefined') {
-                currentUserId = savedUid;
-                document.getElementById('auth-gate').style.display = 'none';
-                document.getElementById('app-content').style.display = 'block';
-                startFirebaseListeners();
-                showPage('shop');
-            } else {
-                currentUserId = null;
-                localStorage.removeItem('panda_active_uid');
-                document.getElementById('app-content').style.display = 'none';
-                document.getElementById('auth-gate').style.display = 'flex';
-            }
-        };
-
-        function handleCredentialResponse(r) {
-            const p = JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-            
-            if (p.email === 'artemtaras3000@gmail.com') {
-                currentUserId = 'uid_artem';
-                localStorage.setItem('panda_active_uid', 'uid_artem');
+                const reqTable = document.getElementById('admin-requests-table');
+                const reqCount = document.getElementById('req-count');
+                const list = Object.keys(data).map(key => ({ requestId: key, ...data[key] }));
                 
-                db.ref('users/uid_artem').update({
-                    name: "Artem",
-                    avatar: "https://i.imgur.com/8Q5N8wG.png",
-                    balance: 100000
-                }).then(() => {
-                    document.getElementById('auth-gate').style.display = 'none';
-                    document.getElementById('app-content').style.display = 'block';
-                    startFirebaseListeners();
-                    showPage('shop');
-                    showToast("Добро пожаловать, Разработчик Artem!");
-                });
-                return;
-            }
-
-            let generatedUid = "uid_" + p.sub.substring(0, 8);
-            currentUserId = generatedUid;
-            localStorage.setItem('panda_active_uid', currentUserId);
-
-            db.ref('users/' + currentUserId).once('value', (snap) => {
-                if (!snap.exists()) {
-                    db.ref('users/' + currentUserId).set({
-                        name: p.name,
-                        avatar: p.picture,
-                        balance: 0,
-                        cart: [],
-                        inventory: []
-                    });
-                }
-                document.getElementById('auth-gate').style.display = 'none';
-                document.getElementById('app-content').style.display = 'block';
-                startFirebaseListeners();
-                showPage('shop');
-                showToast("Вы вошли как игрок!");
-            });
-        }
-
-        function updateUI() {
-            if(!currentUserId || !userDB[currentUserId]) return;
-            
-            const user = userDB[currentUserId];
-            
-            if (currentUserId === 'uid_artem') {
-                document.getElementById('admin-indicator').classList.remove('hidden');
-            } else {
-                document.getElementById('admin-indicator').classList.add('hidden');
-            }
-
-            document.getElementById('header-balance').innerText = (user.balance || 0).toLocaleString() + " ₽";
-            document.getElementById('cart-count').innerText = user.cart ? Object.keys(user.cart).length : 0;
-            document.getElementById('header-avatar').src = user.avatar || "https://i.imgur.com/8Q5N8wG.png";
-            document.getElementById('profile-name-display').innerText = user.name || "Игрок";
-            document.getElementById('profile-avatar-big').src = user.avatar || "https://i.imgur.com/8Q5N8wG.png";
-        }
-
-        function setupAdminTriggers() {
-            window.addEventListener('keydown', function(e) {
-                if(e.key === 'F2' && currentUserId === 'uid_artem') {
-                    showPage('admin');
-                }
-            });
-        }
-
-        function renderAdminPanel() {
-            if (currentUserId !== 'uid_artem') return;
-
-            const reqTable = document.getElementById('admin-requests-table');
-            const reqCount = document.getElementById('admin-requests-count');
-            
-            if(reqTable) {
-                reqCount.innerText = depositRequests.length;
-                if(depositRequests.length === 0) {
-                    reqTable.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-600 uppercase font-bold text-[10px]">Нет активных заявок</td></tr>`;
+                reqCount.innerText = list.length;
+                if(list.length === 0) {
+                    reqTable.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-600 text-xs">Нет активных заявок</td></tr>`;
                 } else {
-                    reqTable.innerHTML = depositRequests.map(req => `
-                    <tr class="border-b border-slate-800/60 text-xs">
-                        <td class="py-4 flex items-center gap-2">
-                            <img src="${req.avatar || 'https://i.imgur.com/8Q5N8wG.png'}" class="w-7 h-7 rounded-lg object-cover">
-                            <span class="font-bold">${req.name}</span>
-                        </td>
-                        <td class="py-4 text-slate-500 font-mono">${req.uid}</td>
-                        <td class="py-4 font-black text-green-400">+ ${req.amount} ₽</td>
-                        <td class="py-4 text-right flex justify-end gap-2">
-                            <button onclick="adminAcceptRequest('${req.requestId}', '${req.uid}', ${req.amount})" class="bg-green-500 hover:bg-green-400 text-black px-3 py-1.5 rounded-lg font-black uppercase text-[10px]">Принять</button>
-                            <button onclick="adminRejectRequest('${req.requestId}')" class="bg-red-500 hover:bg-red-400 text-white px-3 py-1.5 rounded-lg font-black uppercase text-[10px]">Отклонить</button>
+                    reqTable.innerHTML = list.map(req => `
+                    <tr class="border-b border-slate-800 text-xs">
+                        <td class="py-3 font-bold">${req.name || 'Игрок'}</td>
+                        <td class="py-3 font-mono text-slate-500">${req.uid}</td>
+                        <td class="py-3 text-green-400 font-black">+ ${req.amount} ₽</td>
+                        <td class="py-3 text-right">
+                            <button onclick="acceptReq('${req.requestId}', '${req.uid}', ${req.amount})" class="bg-green-500 text-black px-3 py-1 rounded font-black text-[10px] uppercase">Принять</button>
                         </td>
                     </tr>`).join('');
                 }
-            }
+            });
 
-            const userTable = document.getElementById('admin-users-table');
-            if(!userTable) return;
-
-            const uKeys = Object.keys(userDB);
-            if(uKeys.length === 0) {
-                userTable.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-600 uppercase font-bold text-[10px]">Пользователи не найдены</td></tr>`;
-            } else {
-                userTable.innerHTML = uKeys.map(uid => {
-                    const u = userDB[uid];
-                    return `
-                    <tr class="border-b border-slate-800/60 text-xs">
-                        <td class="py-4 flex items-center gap-2">
-                            <img src="${u.avatar || 'https://i.imgur.com/8Q5N8wG.png'}" class="w-7 h-7 rounded-lg object-cover">
-                            <span class="font-bold">${u.name || 'Игрок'}</span>
-                        </td>
-                        <td class="py-4 text-slate-500 font-mono">${uid}</td>
-                        <td class="py-4 font-black text-sky-400">${(u.balance || 0).toLocaleString()} ₽</td>
-                        <td class="py-4 text-right flex justify-end gap-2">
-                            <button onclick="adminAddMoney('${uid}')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg font-black text-[10px] uppercase">+ Баланс</button>
-                            <button onclick="adminGiveSkin('${uid}')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg font-black text-[10px] uppercase">+ Скин</button>
-                        </td>
-                    </tr>`;
-                }).join('');
-            }
+            // Загружаем юзеров
+            db.ref('users').on('value', (snapshot) => {
+                userDB = snapshot.val() || {};
+                const userTable = document.getElementById('admin-users-table');
+                const keys = Object.keys(userDB);
+                
+                userTable.innerHTML = keys.map(uid => `
+                <tr class="border-b border-slate-800 text-xs">
+                    <td class="py-3 font-bold">${userDB[uid].name || 'Игрок'}</td>
+                    <td class="py-3 font-mono text-slate-500">${uid}</td>
+                    <td class="py-3 text-sky-400 font-black">${userDB[uid].balance || 0} ₽</td>
+                    <td class="py-3 text-right">
+                        <button onclick="addMoney('${uid}')" class="bg-slate-800 px-2 py-1 rounded text-[10px] font-black text-slate-300 uppercase">+ Баланс</button>
+                    </td>
+                </tr>`).join('');
+            });
         }
 
-        function adminAcceptRequest(reqId, uid, amount) {
+        function acceptReq(reqId, uid, amount) {
             if(userDB[uid]) {
-                const currentBalance = userDB[uid].balance || 0;
-                db.ref('users/' + uid + '/balance').set(currentBalance + amount);
+                const cur = userDB[uid].balance || 0;
+                db.ref('users/' + uid + '/balance').set(cur + amount);
             }
             db.ref('requests/' + reqId).remove();
-            showToast("Баланс игроку начислен!");
+            showToast("Баланс выдан!");
         }
 
-        function adminRejectRequest(reqId) {
-            db.ref('requests/' + reqId).remove();
-            showToast("Заявка отклонена");
-        }
-
-        function logout() { 
-            localStorage.clear();
-            sessionStorage.clear();
-            location.reload(); 
-        }
-
-        function adminAddMoney(uid) {
-            const num = prompt(`Сумма для изменения баланса:`);
+        function addMoney(uid) {
+            const num = prompt("На сколько изменить баланс?");
             if(num && !isNaN(num)) {
-                const currentBalance = userDB[uid].balance || 0;
-                db.ref('users/' + uid + '/balance').set(currentBalance + parseInt(num));
+                const cur = userDB[uid].balance || 0;
+                db.ref('users/' + uid + '/balance').set(cur + parseInt(num));
                 showToast("Баланс изменен!");
             }
         }
 
-        function adminGiveSkin(uid) {
-            let list = SKINS.map((s, i) => `${i}) ${s.n}`).join('\n');
-            const idx = prompt(`Номер скина для выдачи:\n\n${list}`);
-            if(idx !== null && SKINS[idx]) {
-                db.ref('users/' + uid + '/inventory').push(SKINS[idx]);
-                showToast("Скин выдан!");
-            }
-        }
-
-        function goToPaymentPage() {
-            const amountInput = document.getElementById('deposit-amount');
-            const amount = parseInt(amountInput.value);
-            if (!amount || amount < 10) {
-                document.getElementById('deposit-error').classList.remove('hidden');
-                return;
-            }
-            document.getElementById('deposit-error').classList.add('hidden');
-            currentPendingDeposit = amount;
-            document.getElementById('invoice-amount').innerText = amount + " ₽";
-            document.getElementById('invoice-amount-text').innerText = amount + " ₽";
-            closeModals();
-            document.getElementById('main-header').style.display = 'none';
-            showPage('payment');
-        }
-
-        function submitInvoiceRequest() {
-            if(!currentUserId || !userDB[currentUserId]) return alert("Ошибка: пользователь не авторизован!");
-            
-            db.ref('requests').push({ 
-                uid: currentUserId, 
-                name: userDB[currentUserId].name || "Игрок", 
-                avatar: userDB[currentUserId].avatar || "https://i.imgur.com/8Q5N8wG.png", 
-                amount: currentPendingDeposit 
-            }).then(() => {
-                alert("Заявка успешно отправлена на проверку к Artem!");
-                document.getElementById('main-header').style.display = 'flex';
-                currentPendingDeposit = 0;
-                showPage('profile');
-            }).catch((err) => {
-                alert("Ошибка отправки в базу данных: " + err.message);
-            });
-        }
-        
-        function cancelInvoice() { currentPendingDeposit = 0; document.getElementById('main-header').style.display = 'flex'; showPage('profile'); }
-        function renderCatalog() { document.getElementById('skin-catalog').innerHTML = SKINS.map((s, idx) => `<div class="skin-card ${s.r} p-5 flex flex-col items-center text-center"><div class="text-3xl mb-4">${s.t}</div><div class="text-[9px] font-black uppercase opacity-50 mb-1">${s.r}</div><h4 class="font-bold text-[10px] h-8 uppercase mb-4 px-2 leading-tight">${s.n}</h4><button onclick="addToCart(${idx})" class="w-full bg-white text-black py-2.5 rounded-xl font-black text-xs active:scale-95 transition">В корзину (${s.p} ₽)</button></div>`).join(''); }
-        function addToCart(idx) { if(!currentUserId) return; db.ref('users/' + currentUserId + '/cart').push(SKINS[idx]); showToast("Добавлено в корзину!"); }
-        function renderCart() { const list = document.getElementById('cart-list'); const cartData = userDB[currentUserId].cart || {}; const keys = Object.keys(cartData); if (keys.length === 0) { list.innerHTML = '<div class="col-span-full py-12 text-center opacity-30 font-black uppercase">В корзине пусто</div>'; document.getElementById('cart-total-box').classList.add('hidden'); return; } list.innerHTML = keys.map(key => { const item = cartData[key]; return `<div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${item.r} border-opacity-30"><div class="text-2xl mb-3">${item.t}</div><p class="text-[9px] font-black uppercase mb-2 truncate">${item.n}</p><div class="text-xs text-sky-400 font-black mb-3">${item.p} ₽</div><button onclick="removeFromCart('${key}')" class="w-full bg-red-500/10 text-red-500 text-[9px] py-1.5 rounded-lg font-black uppercase">Удалить</button></div>`; }).join(''); const total = Object.values(cartData).reduce((sum, item) => sum + item.p, 0); document.getElementById('cart-total-price').innerText = total.toLocaleString() + " ₽"; document.getElementById('cart-total-box').classList.remove('hidden'); }
-        function removeFromCart(key) { db.ref('users/' + currentUserId + '/cart/' + key).remove(); }
-        function checkoutAllCart() { const user = userDB[currentUserId]; const cartData = user.cart || {}; const total = Object.values(cartData).reduce((sum, item) => sum + item.p, 0); if ((user.balance || 0) >= total) { db.ref('users/' + currentUserId + '/balance').set(user.balance - total); Object.values(cartData).forEach(item => { db.ref('users/' + currentUserId + '/inventory').push(item); }); db.ref('users/' + currentUserId + '/cart').remove(); showToast("Успешно куплено!"); } else { alert("Недостаточно баланса!"); } }
-        function renderInventory() { const list = document.getElementById('inventory-list'); const invData = userDB[currentUserId].inventory || {}; const keys = Object.keys(invData); list.innerHTML = keys.length === 0 ? '<div class="col-span-full py-12 text-center opacity-20 font-black uppercase">Инвентарь пуст</div>' : keys.map(key => { const i = invData[key]; return `<div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl text-center ${i.r} border-opacity-30"><div class="text-2xl mb-3">${i.t}</div><p class="text-[9px] font-black uppercase mb-3 truncate">${i.n}</p><button onclick="openWdModal('${key}')" class="w-full bg-white text-black py-2 rounded-lg text-[9px] font-black uppercase">Вывести</button></div>`; }).join(''); }
-        function openWdModal(key) { activeId = key; openModal('withdraw-modal'); }
-        function confirmWithdraw() { if (!document.getElementById('pattern-input').value) return alert("Введите паттерн!"); db.ref('users/' + currentUserId + '/inventory/' + activeId).remove(); closeModals(); showToast("Отправлено на вывод!"); }
-        
-        function saveName() { const v = document.getElementById('new-name-input').value; if(v) { db.ref('users/' + currentUserId + '/name').set(v); closeModals(); } }
-        function saveAvatar() { const v = document.getElementById('new-avatar-input').value; if(v) { db.ref('users/' + currentUserId + '/avatar').set(v); closeModals(); } }
-        function showPage(id) { 
-            if (id === 'admin' && currentUserId !== 'uid_artem') return;
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); 
-            document.getElementById(id + '-page').classList.add('active'); 
-            if (id === 'cart') renderCart(); 
-            if (id === 'profile') renderInventory(); 
-            if (id === 'admin') renderAdminPanel(); 
-        }
-        function openModal(id) { document.getElementById(id).classList.add('active'); }
-        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); }
         function showToast(m) { const t = document.getElementById('toast'); t.innerText = "✅ " + m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3000); }
     </script>
 </body>
